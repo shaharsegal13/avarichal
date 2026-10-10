@@ -5,14 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>אבטיחל</title>
 <style>
-  :root { --bg:#fff; --fg:#1a1a1b; --border:#d3d6da; --key:#d3d6da; --green:#6aaa64; --yellow:#c9b458; --gray:#787c7e; }
+  :root { --bg:#fff; --fg:#1a1a1b; --border:#d3d6da; --key:#d3d6da; --green:#6aaa64; --yellow:#c9b458; --gray:#787c7e; --card:#fff; }
   @media (prefers-color-scheme: dark) {
-    :root { --bg:#121213; --fg:#fff; --border:#3a3a3c; --key:#818384; --gray:#3a3a3c; }
+    :root { --bg:#121213; --fg:#fff; --border:#3a3a3c; --key:#818384; --gray:#3a3a3c; --card:#1e1e20; }
   }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--fg); font-family:system-ui,"Segoe UI",Arial,sans-serif;
          display:flex; flex-direction:column; align-items:center; min-height:100vh; }
-  header { width:100%; text-align:center; padding:12px; border-bottom:1px solid var(--border); font-size:1.5rem; font-weight:700; }
+  header { position:relative; width:100%; text-align:center; padding:12px; border-bottom:1px solid var(--border); font-size:1.5rem; font-weight:700; }
+  #statsBtn { position:absolute; left:12px; top:50%; transform:translateY(-50%); border:0; background:none; font-size:1.5rem; cursor:pointer; }
   #msg { height:28px; margin:8px 0 0; font-weight:600; text-align:center; }
   #grid { display:grid; gap:6px; margin:8px 0 16px; direction:rtl; }
   .row { display:grid; gap:6px; direction:rtl; }
@@ -21,32 +22,68 @@
   .tile.filled { border-color:#878a8c; }
   .tile.green, .tile.yellow, .tile.gray { color:#fff; border-color:transparent; }
   .green { background:var(--green); } .yellow { background:var(--yellow); } .gray { background:var(--gray); }
-  #kb { display:flex; flex-direction:column; gap:6px; align-items:center; margin-bottom:16px; direction:rtl; padding:0 4px; }
-  .krow { display:flex; gap:5px; direction:rtl; }
-  .key { min-width:clamp(28px,8vw,40px); height:50px; border:0; border-radius:4px; background:var(--key); color:var(--fg);
-         font-size:1.05rem; font-weight:700; cursor:pointer; padding:0 8px; font-family:inherit; }
+ 
+  #kb { display:flex; flex-direction:column; gap:8px; align-items:center; margin-bottom:16px; width:100%; max-width:480px; padding:0 4px; direction:ltr; }
+  .krow { display:flex; gap:5px; width:100%; direction:ltr; justify-content:center; }
+  .krow.end { justify-content:flex-end; }
+  .key { flex:0 0 calc((100% - 45px) / 10); min-width:0; height:54px; border:0; border-radius:6px; background:var(--key); color:var(--fg);
+         font-size:1.4rem; font-weight:500; cursor:pointer; padding:0; font-family:inherit; touch-action:manipulation; }
+  .spacer { flex:0 0 calc((100% - 45px) / 10 * 0.3); }
   .key.green { background:var(--green); color:#fff; } .key.yellow { background:var(--yellow); color:#fff; }
   .key.gray { background:var(--gray); color:#fff; }
-  .key.wide { font-size:.8rem; padding:0 12px; }
+  .key.back { flex:0 0 calc((100% - 45px) / 10 * 1.4); font-size:1.3rem; }
+  .key.enter { flex:1 1 auto; height:48px; font-size:1.05rem; font-weight:700; }
+ 
   #share { display:none; margin:8px; padding:10px 22px; font-size:1rem; font-weight:700; border:0; border-radius:6px;
            background:var(--green); color:#fff; cursor:pointer; font-family:inherit; }
   @keyframes shake { 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
   .shake { animation:shake .3s; }
+ 
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:10; padding:16px; }
+  .modal.open { display:flex; }
+  .card { position:relative; background:var(--card); color:var(--fg); border-radius:12px; padding:22px 20px; width:100%; max-width:380px; max-height:90vh; overflow:auto; }
+  .card h2 { margin:0 0 14px; text-align:center; font-size:1.2rem; }
+  .card h3 { margin:18px 0 8px; text-align:center; font-size:1rem; }
+  #closeBtn { position:absolute; left:10px; top:8px; border:0; background:none; color:var(--fg); font-size:1.4rem; cursor:pointer; }
+  .nums { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; text-align:center; }
+  .num b { display:block; font-size:1.7rem; }
+  .num span { font-size:.72rem; opacity:.8; }
+  .drow { display:flex; align-items:center; gap:8px; margin:4px 0; direction:rtl; }
+  .drow .lbl { width:14px; text-align:center; font-weight:700; }
+  .drow .bar { background:var(--gray); color:#fff; font-size:.85rem; font-weight:700; padding:2px 8px; min-width:26px; text-align:left; border-radius:3px; }
+  .drow .bar.hit { background:var(--green); }
+  #avg { text-align:center; margin-top:10px; font-size:.9rem; opacity:.85; }
 </style>
 </head>
 <body>
-<header>אבטיחל</header>
+<header>אבטיחל<button id="statsBtn" aria-label="סטטיסטיקה">📊</button></header>
 <div id="msg"></div>
 <div id="grid"></div>
 <button id="share">שיתוף התוצאה</button>
 <div id="kb"></div>
-
+ 
+<div id="modal" class="modal">
+  <div class="card">
+    <button id="closeBtn" aria-label="סגירה">✕</button>
+    <h2>הסטטיסטיקה שלי</h2>
+    <div class="nums">
+      <div class="num"><b id="sPlayed">0</b><span>משחקים</span></div>
+      <div class="num"><b id="sPct">0%</b><span>אחוזי הצלחה</span></div>
+      <div class="num"><b id="sStreak">0</b><span>רצף נוכחי</span></div>
+      <div class="num"><b id="sMax">0</b><span>רצף שיא</span></div>
+    </div>
+    <h3>בכמה ניסיונות הצלחתי</h3>
+    <div id="dist"></div>
+    <div id="avg"></div>
+  </div>
+</div>
+ 
 <script>
 /* ============ הגדרות — כאן עורכים ============ */
-
+ 
 // תאריך ההתחלה: ביום הזה תופיע המילה הראשונה ברשימה (שנה-חודש-יום)
 const START_DATE = "2026-10-11";
-
+ 
 // המילים שלך, לפי הסדר: יום ראשון = המילה הראשונה, יום שני = השנייה וכו'.
 // כשהרשימה נגמרת היא מתחילה מחדש. אפשר לערבב אורכים שונים.
 const WORDS = [
@@ -116,21 +153,32 @@ const WORDS = [
   "תרגול",
   "אבטיח"
 ];
-
+ 
 // שפת המקלדת: "he" לעברית, "en" לאנגלית
 const LANG = "he";
-
+ 
 const MAX_TRIES = 6;
-
+ 
 /* ============ מכאן והלאה אין צורך לגעת ============ */
-
-const HE_LETTERS = "אבגדהוזחטיכלמנסעפצקרשת";
-const EN_LETTERS = "abcdefghijklmnopqrstuvwxyz";
+ 
+// פריסת המקלדת כמו בטלפון
+const LAYOUTS = {
+  he: [
+    ["ק","ר","א","ט","ו","ן","ם","פ"],
+    ["ש","ד","ג","כ","ע","י","ח","ל","ך","ף"],
+    ["ז","ס","ב","ה","נ","מ","צ","ת","ץ"]
+  ],
+  en: [
+    ["q","w","e","r","t","y","u","i","o","p"],
+    ["a","s","d","f","g","h","j","k","l"],
+    ["z","x","c","v","b","n","m"]
+  ]
+};
 const FINALS = { "ך":"כ", "ם":"מ", "ן":"נ", "ף":"פ", "ץ":"צ" };
 const TO_FINAL = { "כ":"ך", "מ":"ם", "נ":"ן", "פ":"ף", "צ":"ץ" };
 const norm = s => [...s].map(c => FINALS[c] || c.toLowerCase()).join("");
 const display = (letter, isLast) => (LANG === "he" && isLast && TO_FINAL[letter]) ? TO_FINAL[letter] : letter;
-
+ 
 function dayNumber() {
   const [y, m, d] = START_DATE.split("-").map(Number);
   const now = new Date();
@@ -143,21 +191,87 @@ const answerRaw = WORDS[idx].trim();
 const answer = norm(answerRaw);
 const LEN = [...answer].length;
 const STORE_KEY = "wordle-" + START_DATE + "-" + day;
-
+const STATS_KEY = "wordle-stats-" + START_DATE;
+ 
 let state = { guesses: [], done: false, won: false };
 try { const s = JSON.parse(localStorage.getItem(STORE_KEY)); if (s) state = s; } catch (e) {}
 const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} };
-
+ 
+// ---------- סטטיסטיקה ----------
+let stats = { played:0, won:0, streak:0, maxStreak:0, lastWinDay:null, lastCountedDay:null, dist:Array(MAX_TRIES).fill(0) };
+try {
+  const s = JSON.parse(localStorage.getItem(STATS_KEY));
+  if (s) { stats = Object.assign(stats, s); if (!Array.isArray(stats.dist) || stats.dist.length !== MAX_TRIES) stats.dist = Array(MAX_TRIES).fill(0); }
+} catch (e) {}
+const saveStats = () => { try { localStorage.setItem(STATS_KEY, JSON.stringify(stats)); } catch (e) {} };
+ 
+function recordResult() {
+  if (stats.lastCountedDay === day) return;
+  stats.played++;
+  if (state.won) {
+    stats.won++;
+    stats.streak = (stats.lastWinDay === day - 1) ? stats.streak + 1 : 1;
+    stats.lastWinDay = day;
+    stats.maxStreak = Math.max(stats.maxStreak, stats.streak);
+    stats.dist[state.guesses.length - 1]++;
+  } else {
+    stats.streak = 0;
+  }
+  stats.lastCountedDay = day;
+  saveStats();
+}
+ 
+function currentStreak() {
+  return (stats.lastWinDay !== null && stats.lastWinDay >= day - 1) ? stats.streak : 0;
+}
+ 
+function renderStats() {
+  document.getElementById("sPlayed").textContent = stats.played;
+  document.getElementById("sPct").textContent = (stats.played ? Math.round(stats.won / stats.played * 100) : 0) + "%";
+  document.getElementById("sStreak").textContent = currentStreak();
+  document.getElementById("sMax").textContent = stats.maxStreak;
+ 
+  const distEl = document.getElementById("dist");
+  distEl.innerHTML = "";
+  const max = Math.max(1, ...stats.dist);
+  const todayIdx = (state.done && state.won) ? state.guesses.length - 1 : -1;
+  stats.dist.forEach((n, i) => {
+    const row = document.createElement("div");
+    row.className = "drow";
+    const lbl = document.createElement("div");
+    lbl.className = "lbl";
+    lbl.textContent = i + 1;
+    const bar = document.createElement("div");
+    bar.className = "bar" + (i === todayIdx ? " hit" : "");
+    bar.style.width = Math.max(8, Math.round(n / max * 100)) + "%";
+    bar.textContent = n;
+    row.appendChild(lbl);
+    row.appendChild(bar);
+    distEl.appendChild(row);
+  });
+ 
+  const total = stats.dist.reduce((a, b) => a + b, 0);
+  const sum = stats.dist.reduce((a, n, i) => a + n * (i + 1), 0);
+  document.getElementById("avg").textContent = total ? "ממוצע ניסיונות בניצחון: " + (sum / total).toFixed(1) : "";
+}
+ 
+const modal = document.getElementById("modal");
+function openStats() { renderStats(); modal.classList.add("open"); }
+document.getElementById("statsBtn").onclick = openStats;
+document.getElementById("closeBtn").onclick = () => modal.classList.remove("open");
+modal.onclick = e => { if (e.target === modal) modal.classList.remove("open"); };
+ 
+// ---------- משחק ----------
 let current = "";
 const gridEl = document.getElementById("grid");
 const msgEl = document.getElementById("msg");
 const kbEl = document.getElementById("kb");
 const shareBtn = document.getElementById("share");
-
+ 
 if (day < 0) {
   msgEl.textContent = "המשחק עוד לא התחיל. חכי עד " + START_DATE;
 }
-
+ 
 // בניית הלוח
 const rows = [];
 for (let r = 0; r < MAX_TRIES; r++) {
@@ -174,29 +288,44 @@ for (let r = 0; r < MAX_TRIES; r++) {
   gridEl.appendChild(row);
   rows.push(tiles);
 }
-
+ 
 // מקלדת
-const letters = [...(LANG === "he" ? HE_LETTERS : EN_LETTERS)];
-const perRow = LANG === "he" ? [8, 7, 7] : [10, 9, 7];
-const keyEls = {};
-let p = 0;
-perRow.forEach((n, i) => {
-  const kr = document.createElement("div");
-  kr.className = "krow";
-  if (i === perRow.length - 1) kr.appendChild(makeKey("enter", "אישור", true));
-  letters.slice(p, p + n).forEach(l => { const k = makeKey(l, l); keyEls[l] = k; kr.appendChild(k); });
-  p += n;
-  if (i === perRow.length - 1) kr.appendChild(makeKey("back", "⌫", true));
-  kbEl.appendChild(kr);
-});
-function makeKey(val, label, wide) {
+const layout = LAYOUTS[LANG] || LAYOUTS.he;
+const VALID = new Set(layout.flat().map(norm));
+const keyEls = {};   // אות מנורמלת -> רשימת כפתורים
+const bestColor = {};
+function makeKey(val, label, cls) {
   const b = document.createElement("button");
-  b.className = "key" + (wide ? " wide" : "");
+  b.className = "key" + (cls ? " " + cls : "");
   b.textContent = label;
   b.onclick = () => press(val);
   return b;
 }
-
+// השורות מסודרות משמאל לימין בדיוק כמו בתמונה של מקלדת האייפון.
+// מקש המחיקה בקצה הימני של השורה הראשונה (במקלדת האנגלית – בשורה האחרונה).
+const backRow = layout[0].length <= 8 ? 0 : layout.length - 1;
+layout.forEach((letters, i) => {
+  const kr = document.createElement("div");
+  kr.className = "krow" + (i === 0 && backRow === 0 ? " end" : "");
+  letters.forEach(l => {
+    const n = norm(l);
+    const k = makeKey(n, l);
+    (keyEls[n] = keyEls[n] || []).push(k);
+    kr.appendChild(k);
+  });
+  if (i === backRow) {
+    const sp = document.createElement("div");
+    sp.className = "spacer";
+    kr.appendChild(sp);
+    kr.appendChild(makeKey("back", "⌫", "back"));
+  }
+  kbEl.appendChild(kr);
+});
+const bottomRow = document.createElement("div");
+bottomRow.className = "krow";
+bottomRow.appendChild(makeKey("enter", "אישור", "enter"));
+kbEl.appendChild(bottomRow);
+ 
 function score(guess) {
   const res = Array(LEN).fill("gray");
   const g = [...guess], a = [...answer];
@@ -209,7 +338,8 @@ function score(guess) {
   }
   return res;
 }
-
+ 
+const RANK = { gray:1, yellow:2, green:3 };
 function paintRow(r, guess, colors) {
   const g = [...guess];
   rows[r].forEach((t, i) => {
@@ -217,13 +347,14 @@ function paintRow(r, guess, colors) {
     t.className = "tile filled " + colors[i];
   });
   g.forEach((ch, i) => {
-    const k = keyEls[ch]; if (!k) return;
-    const rank = { gray:1, yellow:2, green:3 };
-    const cur = ["green","yellow","gray"].find(c => k.classList.contains(c));
-    if (!cur || rank[colors[i]] > rank[cur]) { k.classList.remove("green","yellow","gray"); k.classList.add(colors[i]); }
+    const els = keyEls[ch]; if (!els) return;
+    if (!bestColor[ch] || RANK[colors[i]] > RANK[bestColor[ch]]) {
+      bestColor[ch] = colors[i];
+      els.forEach(k => { k.classList.remove("green","yellow","gray"); k.classList.add(colors[i]); });
+    }
   });
 }
-
+ 
 function drawCurrent() {
   const r = state.guesses.length;
   if (r >= MAX_TRIES || state.done) return;
@@ -233,9 +364,9 @@ function drawCurrent() {
     t.className = "tile" + (g[i] ? " filled" : "");
   });
 }
-
+ 
 function toast(t) { msgEl.textContent = t; }
-
+ 
 function press(val) {
   if (state.done || day < 0) return;
   if (val === "back") { current = [...current].slice(0, -1).join(""); }
@@ -243,11 +374,12 @@ function press(val) {
   else if ([...current].length < LEN) { current += val; }
   drawCurrent();
 }
-
+ 
 function submit() {
   if ([...current].length < LEN) {
-    rows[state.guesses.length][0].parentElement.classList.add("shake");
-    setTimeout(() => rows[state.guesses.length][0].parentElement.classList.remove("shake"), 300);
+    const rowEl = rows[state.guesses.length][0].parentElement;
+    rowEl.classList.add("shake");
+    setTimeout(() => rowEl.classList.remove("shake"), 300);
     toast("אין מספיק אותיות");
     return;
   }
@@ -259,14 +391,15 @@ function submit() {
   else if (state.guesses.length >= MAX_TRIES) { state.done = true; }
   current = "";
   save();
-  if (state.done) finish();
+  if (state.done) { recordResult(); finish(true); }
 }
-
-function finish() {
+ 
+function finish(openModal) {
   toast(state.won ? "כל הכבוד! 🎉" : "המילה הייתה: " + answerRaw);
   shareBtn.style.display = "inline-block";
+  if (openModal) setTimeout(openStats, 1200);
 }
-
+ 
 shareBtn.onclick = () => {
   const emoji = { green:"🟩", yellow:"🟨", gray:"⬛" };
   const lines = state.guesses.map(g => score(g).map(c => emoji[c]).join(""));
@@ -274,18 +407,19 @@ shareBtn.onclick = () => {
   if (navigator.share) navigator.share({ text }).catch(() => {});
   else navigator.clipboard.writeText(text).then(() => toast("הועתק ללוח"));
 };
-
+ 
 document.addEventListener("keydown", e => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === "Enter") return press("enter");
   if (e.key === "Backspace") return press("back");
   const ch = norm(e.key);
-  if (ch.length === 1 && letters.includes(ch)) press(ch);
+  if (ch.length === 1 && VALID.has(ch)) press(ch);
 });
-
+ 
 // שחזור מצב שמור
 state.guesses.forEach((g, r) => paintRow(r, g, score(g)));
-if (state.done) finish();
+if (state.done) { recordResult(); finish(false); }
 </script>
 </body>
 </html>
+ 
