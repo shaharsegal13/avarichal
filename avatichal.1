@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>אבטיחל</title>
+<style>
+  :root { --bg:#fff; --fg:#1a1a1b; --border:#d3d6da; --key:#d3d6da; --green:#6aaa64; --yellow:#c9b458; --gray:#787c7e; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#121213; --fg:#fff; --border:#3a3a3c; --key:#818384; --gray:#3a3a3c; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font-family:system-ui,"Segoe UI",Arial,sans-serif;
+         display:flex; flex-direction:column; align-items:center; min-height:100vh; }
+  header { width:100%; text-align:center; padding:12px; border-bottom:1px solid var(--border); font-size:1.5rem; font-weight:700; }
+  #msg { height:28px; margin:8px 0 0; font-weight:600; text-align:center; }
+  #grid { display:grid; gap:6px; margin:8px 0 16px; direction:rtl; }
+  .row { display:grid; gap:6px; direction:rtl; }
+  .tile { width:clamp(46px,14vw,62px); height:clamp(46px,14vw,62px); border:2px solid var(--border);
+          display:flex; align-items:center; justify-content:center; font-size:1.8rem; font-weight:700; }
+  .tile.filled { border-color:#878a8c; }
+  .tile.green, .tile.yellow, .tile.gray { color:#fff; border-color:transparent; }
+  .green { background:var(--green); } .yellow { background:var(--yellow); } .gray { background:var(--gray); }
+  #kb { display:flex; flex-direction:column; gap:6px; align-items:center; margin-bottom:16px; direction:rtl; padding:0 4px; }
+  .krow { display:flex; gap:5px; direction:rtl; }
+  .key { min-width:clamp(28px,8vw,40px); height:50px; border:0; border-radius:4px; background:var(--key); color:var(--fg);
+         font-size:1.05rem; font-weight:700; cursor:pointer; padding:0 8px; font-family:inherit; }
+  .key.green { background:var(--green); color:#fff; } .key.yellow { background:var(--yellow); color:#fff; }
+  .key.gray { background:var(--gray); color:#fff; }
+  .key.wide { font-size:.8rem; padding:0 12px; }
+  #share { display:none; margin:8px; padding:10px 22px; font-size:1rem; font-weight:700; border:0; border-radius:6px;
+           background:var(--green); color:#fff; cursor:pointer; font-family:inherit; }
+  @keyframes shake { 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
+  .shake { animation:shake .3s; }
+</style>
+</head>
+<body>
+<header>אבטיחל</header>
+<div id="msg"></div>
+<div id="grid"></div>
+<button id="share">שיתוף התוצאה</button>
+<div id="kb"></div>
+ 
+<script>
+/* ============ הגדרות — כאן עורכים ============ */
+ 
+// תאריך ההתחלה: ביום הזה תופיע המילה הראשונה ברשימה (שנה-חודש-יום)
+const START_DATE = "2026-10-11";
+ 
+// המילים שלך, לפי הסדר: יום ראשון = המילה הראשונה, יום שני = השנייה וכו'.
+// כשהרשימה נגמרת היא מתחילה מחדש. אפשר לערבב אורכים שונים.
+const WORDS = [
+  "אבטיח",
+  "אבטיח",
+  "תמונה",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "שיקוי",
+  "אבטיח",
+  "קופסא",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "משולש",
+  "אבטיח",
+  "אבטיח",
+  "עיתון",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "הבטחה",
+  "קיצור",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "צפרדע",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "טלפון",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "קיפוד",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "ראשון",
+  "אבטיח",
+  "עגלות",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "אבטיח",
+  "תרגול",
+  "אבטיח"
+];
+ 
+// שפת המקלדת: "he" לעברית, "en" לאנגלית
+const LANG = "he";
+ 
+const MAX_TRIES = 6;
+ 
+/* ============ מכאן והלאה אין צורך לגעת ============ */
+ 
+const HE_LETTERS = "אבגדהוזחטיכלמנסעפצקרשת";
+const EN_LETTERS = "abcdefghijklmnopqrstuvwxyz";
+const FINALS = { "ך":"כ", "ם":"מ", "ן":"נ", "ף":"פ", "ץ":"צ" };
+const TO_FINAL = { "כ":"ך", "מ":"ם", "נ":"ן", "פ":"ף", "צ":"ץ" };
+const norm = s => [...s].map(c => FINALS[c] || c.toLowerCase()).join("");
+const display = (letter, isLast) => (LANG === "he" && isLast && TO_FINAL[letter]) ? TO_FINAL[letter] : letter;
+ 
+function dayNumber() {
+  const [y, m, d] = START_DATE.split("-").map(Number);
+  const now = new Date();
+  const a = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.floor((a - Date.UTC(y, m - 1, d)) / 86400000);
+}
+const day = dayNumber();
+const idx = ((day % WORDS.length) + WORDS.length) % WORDS.length;
+const answerRaw = WORDS[idx].trim();
+const answer = norm(answerRaw);
+const LEN = [...answer].length;
+const STORE_KEY = "wordle-" + START_DATE + "-" + day;
+ 
+let state = { guesses: [], done: false, won: false };
+try { const s = JSON.parse(localStorage.getItem(STORE_KEY)); if (s) state = s; } catch (e) {}
+const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} };
+ 
+let current = "";
+const gridEl = document.getElementById("grid");
+const msgEl = document.getElementById("msg");
+const kbEl = document.getElementById("kb");
+const shareBtn = document.getElementById("share");
+ 
+if (day < 0) {
+  msgEl.textContent = "המשחק עוד לא התחיל. חכי עד " + START_DATE;
+}
+ 
+// בניית הלוח
+const rows = [];
+for (let r = 0; r < MAX_TRIES; r++) {
+  const row = document.createElement("div");
+  row.className = "row";
+  row.style.gridTemplateColumns = `repeat(${LEN}, auto)`;
+  const tiles = [];
+  for (let c = 0; c < LEN; c++) {
+    const t = document.createElement("div");
+    t.className = "tile";
+    row.appendChild(t);
+    tiles.push(t);
+  }
+  gridEl.appendChild(row);
+  rows.push(tiles);
+}
+ 
+// מקלדת
+const letters = [...(LANG === "he" ? HE_LETTERS : EN_LETTERS)];
+const perRow = LANG === "he" ? [8, 7, 7] : [10, 9, 7];
+const keyEls = {};
+let p = 0;
+perRow.forEach((n, i) => {
+  const kr = document.createElement("div");
+  kr.className = "krow";
+  if (i === perRow.length - 1) kr.appendChild(makeKey("enter", "אישור", true));
+  letters.slice(p, p + n).forEach(l => { const k = makeKey(l, l); keyEls[l] = k; kr.appendChild(k); });
+  p += n;
+  if (i === perRow.length - 1) kr.appendChild(makeKey("back", "⌫", true));
+  kbEl.appendChild(kr);
+});
+function makeKey(val, label, wide) {
+  const b = document.createElement("button");
+  b.className = "key" + (wide ? " wide" : "");
+  b.textContent = label;
+  b.onclick = () => press(val);
+  return b;
+}
+ 
+function score(guess) {
+  const res = Array(LEN).fill("gray");
+  const g = [...guess], a = [...answer];
+  const left = {};
+  for (let i = 0; i < LEN; i++) {
+    if (g[i] === a[i]) res[i] = "green"; else left[a[i]] = (left[a[i]] || 0) + 1;
+  }
+  for (let i = 0; i < LEN; i++) {
+    if (res[i] !== "green" && left[g[i]] > 0) { res[i] = "yellow"; left[g[i]]--; }
+  }
+  return res;
+}
+ 
+function paintRow(r, guess, colors) {
+  const g = [...guess];
+  rows[r].forEach((t, i) => {
+    t.textContent = display(g[i], i === LEN - 1);
+    t.className = "tile filled " + colors[i];
+  });
+  g.forEach((ch, i) => {
+    const k = keyEls[ch]; if (!k) return;
+    const rank = { gray:1, yellow:2, green:3 };
+    const cur = ["green","yellow","gray"].find(c => k.classList.contains(c));
+    if (!cur || rank[colors[i]] > rank[cur]) { k.classList.remove("green","yellow","gray"); k.classList.add(colors[i]); }
+  });
+}
+ 
+function drawCurrent() {
+  const r = state.guesses.length;
+  if (r >= MAX_TRIES || state.done) return;
+  const g = [...current];
+  rows[r].forEach((t, i) => {
+    t.textContent = g[i] ? display(g[i], i === LEN - 1) : "";
+    t.className = "tile" + (g[i] ? " filled" : "");
+  });
+}
+ 
+function toast(t) { msgEl.textContent = t; }
+ 
+function press(val) {
+  if (state.done || day < 0) return;
+  if (val === "back") { current = [...current].slice(0, -1).join(""); }
+  else if (val === "enter") { submit(); return; }
+  else if ([...current].length < LEN) { current += val; }
+  drawCurrent();
+}
+ 
+function submit() {
+  if ([...current].length < LEN) {
+    rows[state.guesses.length][0].parentElement.classList.add("shake");
+    setTimeout(() => rows[state.guesses.length][0].parentElement.classList.remove("shake"), 300);
+    toast("אין מספיק אותיות");
+    return;
+  }
+  toast("");
+  const r = state.guesses.length;
+  state.guesses.push(current);
+  paintRow(r, current, score(current));
+  if (current === answer) { state.done = true; state.won = true; }
+  else if (state.guesses.length >= MAX_TRIES) { state.done = true; }
+  current = "";
+  save();
+  if (state.done) finish();
+}
+ 
+function finish() {
+  toast(state.won ? "כל הכבוד! 🎉" : "המילה הייתה: " + answerRaw);
+  shareBtn.style.display = "inline-block";
+}
+ 
+shareBtn.onclick = () => {
+  const emoji = { green:"🟩", yellow:"🟨", gray:"⬛" };
+  const lines = state.guesses.map(g => score(g).map(c => emoji[c]).join(""));
+  const text = `אבטיחל #${day + 1} ${state.won ? state.guesses.length : "X"}/${MAX_TRIES}\n` + lines.join("\n");
+  if (navigator.share) navigator.share({ text }).catch(() => {});
+  else navigator.clipboard.writeText(text).then(() => toast("הועתק ללוח"));
+};
+ 
+document.addEventListener("keydown", e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === "Enter") return press("enter");
+  if (e.key === "Backspace") return press("back");
+  const ch = norm(e.key);
+  if (ch.length === 1 && letters.includes(ch)) press(ch);
+});
+ 
+// שחזור מצב שמור
+state.guesses.forEach((g, r) => paintRow(r, g, score(g)));
+if (state.done) finish();
+</script>
+</body>
+</html>
